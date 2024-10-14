@@ -1,12 +1,11 @@
 require('dotenv').config()
 
 const cron = require('node-cron')
-const { exec } = require('child_process')
 const path = require('path')
 const fs = require('fs')
+const { exec } = require('child_process')
 
-const db = path.join(__dirname, 'db')
-
+const db = path.resolve(__dirname, 'db')
 const { USER: DB_USER, PASSWORD: DB_PASSWORD, NAME: DB_NAME } = process.env
 
 if (!DB_USER || !DB_PASSWORD || !DB_NAME) {
@@ -18,19 +17,28 @@ if (!fs.existsSync(db)) {
   fs.mkdirSync(db)
 }
 
-async function initBackup() {
-  const file = path.join(db, `${DB_NAME}_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.sql`)
-  const command = `mariadb-dump -u ${DB_USER} -p${DB_PASSWORD} ${DB_NAME} > ${file}`
+const execute = (command) => {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Backup failed: ${stderr || stdout}`)
+        return reject(new Error(stderr.trim()))
+      }
+      resolve(stdout.trim())
+    })
+  })
+}
+
+const initBackup = async () => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const file = path.join(db, `${DB_NAME}_backup_${timestamp}.sql`)
+  const command = `mariadb-dump --user=${DB_USER} --password=${DB_PASSWORD} ${DB_NAME} > "${file}"`
 
   try {
-    exec(command, { shell: true }, (error, stdout, stderr) => {
-      if (error) {
-        throw new Error(`Backup failed: ${stderr || stdout}`)
-      }
-      console.log(`Backup created successfully: ${file}`)
-    });
+    await execute(command)
+    console.log(`Backup created successfully: ${file}`)
   } catch (error) {
-    console.error('Error taking backup:', error.message);
+    console.error('Error taking backup:', error.message)
   }
 }
 
