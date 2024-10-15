@@ -2,27 +2,17 @@ require('dotenv').config()
 
 const axios = require('axios')
 const cron = require('node-cron')
-const readline = require('readline')
-const path = require('path')
-const fs = require('fs')
 const { exec } = require('child_process')
+const fs = require('fs')
+const path = require('path')
+const readline = require('readline')
 
+const user = process.env.DB_USER
+const password = process.env.DB_PASSWORD
+const name = process.env.DB_NAME
 const dir = path.resolve(__dirname, 'db')
-const {
-  USER: DB_USER,
-  PASSWORD: DB_PASSWORD,
-  NAME: DB_NAME,
-  LOG_CHANNEL: WEBHOOK
-} = process.env
 
-if (!DB_USER || !DB_PASSWORD || !DB_NAME || !WEBHOOK) {
-  console.error('Environment variables missing.')
-  process.exit(1)
-}
-
-if (!fs.existsSync(dir)) {
-  fs.mkdirSync(dir)
-}
+const webhook = process.env.WEBHOOK_URL
 
 const client = readline.createInterface({
   input: process.stdin,
@@ -31,7 +21,7 @@ const client = readline.createInterface({
 
 const sendDiscordWebhookMessage = async (title, description, color) => {
   try {
-    await axios.post(WEBHOOK, {
+    await axios.post(webhook, {
       embeds: [
         {
           title: title,
@@ -56,7 +46,7 @@ const initBackup = async (db) => {
   const timestamp = new Date().toLocaleTimeString()
   const vim = generateRandomNumber(4)
   const file = path.join(dir, `${db}_backup_${date}_g${vim}.sql`)
-  const command = `mariadb-dump --user=${DB_USER} --password=${DB_PASSWORD} ${db}`
+  const command = `mariadb-dump --user=${user} --password=${password} ${db}`
 
   console.log(`Backup started at ${timestamp}`)
   console.log(`Backing up database ${db} to ${file}...`)
@@ -105,7 +95,7 @@ const initBackup = async (db) => {
 
 cron.schedule('0 * * * *', async () => {
   console.log('Generating database backup...')
-  await initBackup(DB_NAME)
+  await initBackup(name)
 })
 
 client.on('line', async (input) => {
@@ -113,9 +103,9 @@ client.on('line', async (input) => {
 
   switch (command) {
     case 'backup':
-      const name = input.trim().split(' ')[1] || DB_NAME
-      console.log(`Manual backup for database (${name}) initiated...`)
-      await initBackup(name)
+      const database = input.trim().split(' ')[1] || name
+      console.log(`Manual backup for database (${database}) initiated...`)
+      await initBackup(database)
       break
     default:
       console.log('Unknown command.')
@@ -128,5 +118,7 @@ process.on('uncaughtException', (err) => {
 })
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error(`Unhandled rejection at: ${promise}, reason: ${reason.message}`)
+  console.error(`Unhandled rejection at: ${promise}, reason: ${reason}`)
 })
+
+console.log(`Connected to database. User: ${user} | Database: ${name} | Password: ${password} | Webhook: ${webhook}`)
