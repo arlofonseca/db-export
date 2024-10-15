@@ -7,7 +7,7 @@ const path = require('path')
 const fs = require('fs')
 const { exec } = require('child_process')
 
-const db = path.resolve(__dirname, 'db')
+const dir = path.resolve(__dirname, 'db')
 const {
   USER: DB_USER,
   PASSWORD: DB_PASSWORD,
@@ -20,8 +20,8 @@ if (!DB_USER || !DB_PASSWORD || !DB_NAME || !WEBHOOK) {
   process.exit(1)
 }
 
-if (!fs.existsSync(db)) {
-  fs.mkdirSync(db)
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir)
 }
 
 const client = readline.createInterface({
@@ -51,15 +51,15 @@ const generateRandomNumber = (length) => {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-const initBackup = async () => {
+const initBackup = async (db) => {
   const date = new Date().toISOString().replace(/[:.]/g, '-')
   const timestamp = new Date().toLocaleTimeString()
   const vim = generateRandomNumber(4)
-  const file = path.join(db, `${DB_NAME}_backup_${date}_g${vim}.sql`)
-  const command = `mariadb-dump --user=${DB_USER} --password=${DB_PASSWORD} ${DB_NAME}`
+  const file = path.join(dir, `${db}_backup_${date}_g${vim}.sql`)
+  const command = `mariadb-dump --user=${DB_USER} --password=${DB_PASSWORD} ${db}`
 
   console.log(`Backup started at ${timestamp}`)
-  console.log(`Backing up database ${DB_NAME} to ${file}...`)
+  console.log(`Backing up database ${db} to ${file}...`)
 
   const start = Date.now()
 
@@ -113,8 +113,9 @@ client.on('line', async (input) => {
 
   switch (command) {
     case 'backup':
-      console.log('Manual backup initiated...')
-      await initBackup()
+      const name = input.trim().split(' ')[1] || DB_NAME
+      console.log(`Manual backup for database (${name}) initiated...`)
+      await initBackup(name)
       break
     default:
       console.log('Unknown command.')
