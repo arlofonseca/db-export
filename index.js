@@ -105,7 +105,7 @@ const initBackup = async (db) => {
 
 cron.schedule('0 * * * *', async () => {
   console.log('Generating database backup...')
-  await initBackup()
+  await initBackup(DB_NAME)
 })
 
 client.on('line', async (input) => {
