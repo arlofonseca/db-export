@@ -2,6 +2,7 @@ require('dotenv').config()
 
 const axios = require('axios');
 const cron = require('node-cron')
+const readline = require('readline');
 const path = require('path')
 const fs = require('fs')
 const { exec } = require('child_process')
@@ -17,6 +18,11 @@ if (!DB_USER || !DB_PASSWORD || !DB_NAME || !WEBHOOK) {
 if (!fs.existsSync(db)) {
   fs.mkdirSync(db)
 }
+
+const client = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
 
 const sendDiscordWebhookMessage = async (title, description, color) => {
   try {
@@ -68,10 +74,24 @@ const initBackup = async () => {
   }
 }
 
-cron.schedule('0 * * * *', () => {
-  console.log('Generating database backup...')
-  initBackup()
-})
+cron.schedule('0 * * * *', async () => {
+  console.log('Generating database backup...');
+  await initBackup();
+});
+
+client.on('line', async (input) => {
+  const [command] = input.trim().split(' ');
+
+  switch (command) {
+    case 'backup':
+      console.log('Manual backup initiated...');
+      await initBackup();
+      break;
+    default:
+      console.log('Unknown command.');
+      break;
+  }
+});
 
 process.on('uncaughtException', (err) => {
   console.error(`Uncaught exception: ${err.message}`)
