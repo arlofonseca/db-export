@@ -55,7 +55,7 @@ const initBackup = async () => {
   const date = new Date().toISOString().replace(/[:.]/g, '-')
   const timestamp = new Date().toLocaleTimeString()
   const vim = generateRandomNumber(4)
-  const file = path.join(db, `${DB_NAME}_backup_${date}.sql`)
+  const file = path.join(db, `${DB_NAME}_backup_${date}_g${vim}.sql`)
   const command = `mariadb-dump --user=${DB_USER} --password=${DB_PASSWORD} ${DB_NAME}`
 
   console.log(`Backup started at ${timestamp}`)
