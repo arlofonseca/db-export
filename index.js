@@ -234,7 +234,7 @@ const initBackup = async () => {
   }
 }
 
-cron.schedule('* * * * *', async () => {
+cron.schedule('0 * * * *', async () => {
   console.log('Generating database backup...')
   await initBackup()
 })
