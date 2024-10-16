@@ -2,7 +2,8 @@ require('dotenv').config()
 
 const axios = require('axios')
 const cron = require('node-cron')
-const { exec } = require('child_process')
+const util = require('util')
+const exec = util.promisify(require('child_process').exec)
 const fs = require('fs')
 const mysql = require('mysql2/promise')
 const path = require('path')
@@ -59,6 +60,7 @@ const checkConnection = async () => {
     await sendDiscordWebhookMessage(`\`🟢\` Successfully connected to database`, 0x008000)
   } catch (error) {
     console.error(`Error connecting to database: ${error.message}`)
+    await sendDiscordWebhookMessage(`\`🔴\` Error connecting to database`, 0x800000)
     process.exit(1)
   }
 }
@@ -72,37 +74,31 @@ const initBackup = async (db) => {
   console.log(`${new Date().toLocaleTimeString()}: Backing up database (${db}) to (${file})...`)
 
   try {
-    await new Promise((resolve, reject) => {
-      const output = fs.createWriteStream(file)
-      const child = exec(command, { maxBuffer: 1024 * 1024 * 10 })
+    const { stdout, stderr } = await exec(command, { maxBuffer: 1024 * 1024 * 10 })
 
-      console.info(output)
-      console.info(child)
+    console.info(stdout)
 
-      child.stdout.pipe(output)
-      child.stderr.pipe(process.stderr)
-
-      console.info(process.stderr)
-
-      child.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`Error: ${code}`))
-        } else {
-          resolve()
-        }
-      })
-    })
+    fs.writeFileSync(file, stdout)
+    if (stderr) {
+      console.error(`Output error: ${stderr}`)
+    }
 
     console.log(`Successfully generated backup: ${file}`)
     await sendDiscordWebhookMessage(`\`🟢\` Backup created (g${vim})`, 0x008000)
   } catch (error) {
     console.error(`Error generating backup: ${error.message}`)
     await sendDiscordWebhookMessage(`\`🔴\` Backup failed (g${vim})`, 0x800000)
+
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file)
+      console.log(`Removed incomplete backup file: ${file}`)
+    }
   }
 }
 
 cron.schedule('0 * * * *', async () => {
   console.log('Generating database backup.')
+  await sendDiscordWebhookMessage(`\`🟢\` Generating database backup`, 0x008000)
   await initBackup(name)
 })
 
